@@ -1,0 +1,288 @@
+{
+  "id": "Pd1JzZ386oibUnMe",
+  "name": "storyboard-with-host",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "storyboard-host",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-host",
+      "name": "Webhook",
+      "position": [
+        -608,
+        -176
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "cf7d0580-ec66-4447-9b1c-d70634c0c484",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json.body || $input.item.json;\nconst errors = [];\nif (!input.scene_id) errors.push(\"Missing: scene_id\");\nif (!input.narration_text) errors.push(\"Missing: narration_text\");\nif (!input.shot_count) errors.push(\"Missing: shot_count\");\nif (!input.host_image_url) errors.push(\"Missing: host_image_url\");\nif (errors.length > 0) { throw new Error(\"Validation failed: \" + errors.join(\", \")); }\nreturn { scene_id: input.scene_id, narration_text: input.narration_text, shot_count: parseInt(input.shot_count), host_image_url: input.host_image_url, host_panels: input.host_panels || [1], style: input.style || \"cinematic\", aspect_ratio: input.aspect_ratio || \"16:9\", imagery_tone: input.imagery_tone || \"high quality, professional\" };"
+      },
+      "id": "validate-host",
+      "name": "Validate Input",
+      "position": [
+        -384,
+        -176
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sp",
+              "name": "storyboard_prompt",
+              "type": "string",
+              "value": "=Create a SINGLE composite storyboard image with exactly {{ $('Validate Input').item.json.shot_count }} panels arranged in a horizontal strip layout.\n\nScene narration to visualize across panels:\n\"{{ $('Validate Input').item.json.narration_text }}\"\n\nIMPORTANT HOST INSTRUCTION:\nThe reference image shows a person. Include this person as the host/presenter in panels {{ $('Validate Input').item.json.host_panels.join(', ') }} of the storyboard. The host should appear naturally integrated into the scene \u2014 facing the camera or at a slight angle, in a natural speaking or presenting pose, as if narrating the scene.\nAlso host reference image adapts to screenplay style, never overrides it.\n\nRequirements:\n- ONE image containing {{ $('Validate Input').item.json.shot_count }} distinct panels side by side\n- Each panel shows a sequential moment from the narration\n- Panels {{ $('Validate Input').item.json.host_panels.join(', ') }} MUST include the person from the reference image as the host\n- Other panels should NOT include the host\n- Style: {{ $('Validate Input').item.json.style }}\n- Overall aspect ratio: {{ $('Validate Input').item.json.aspect_ratio }}\n- {{ $('Validate Input').item.json.imagery_tone }}\n- Clear visual separation between panels\n- Cinematic composition in each panel\n- Consistent visual style across all panels\n\nThe image should be a professional storyboard suitable for video production planning."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build-prompt-host",
+      "name": "Build Storyboard Prompt",
+      "position": [
+        -160,
+        -176
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "bucketName": "={{ $('Validate Input').item.json.host_image_url.split(\"/\")[3] }}",
+        "fileKey": "={{ $('Validate Input').item.json.host_image_url.split('/').slice(4).join('/') }}"
+      },
+      "id": "download-host",
+      "name": "Download Host Image",
+      "position": [
+        64,
+        -176
+      ],
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "credentials": {
+        "s3": {
+          "id": "REDACTED",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "edit",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-pro-image-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-pro-image-preview (Nano Banana Pro)"
+        },
+        "prompt": "={{ $('Build Storyboard Prompt').item.json.storyboard_prompt }}",
+        "images": {
+          "values": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-storyboard-host",
+      "name": "Generate Storyboard",
+      "position": [
+        288,
+        -176
+      ],
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REDACTED",
+          "name": "nano credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "jeremiah-media",
+        "fileName": "=storyboards/{{ $execution.id }}_{{ $('Validate Input').item.json.scene_id }}.png",
+        "binaryPropertyName": "edited",
+        "additionalFields": {}
+      },
+      "id": "upload-host-sb",
+      "name": "Upload Storyboard",
+      "position": [
+        512,
+        -176
+      ],
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "credentials": {
+        "s3": {
+          "id": "REDACTED",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sf",
+              "name": "status",
+              "type": "string",
+              "value": "success"
+            },
+            {
+              "id": "scf",
+              "name": "scene_id",
+              "type": "string",
+              "value": "={{ $('Validate Input').item.json.scene_id }}"
+            },
+            {
+              "id": "cf",
+              "name": "shot_count",
+              "type": "number",
+              "value": "={{ $('Validate Input').item.json.shot_count }}"
+            },
+            {
+              "id": "uf",
+              "name": "storyboard_url",
+              "type": "string",
+              "value": "=http://minio:9000/jeremiah-media/storyboards/{{ $execution.id }}_{{ $('Validate Input').item.json.scene_id }}.png"
+            },
+            {
+              "id": "hf",
+              "name": "host_panels",
+              "type": "string",
+              "value": "={{ JSON.stringify($('Validate Input').item.json.host_panels) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "edit-fields-host",
+      "name": "Build Response",
+      "position": [
+        736,
+        -176
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond-host",
+      "name": "Respond to Webhook",
+      "position": [
+        960,
+        -176
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5
+    }
+  ],
+  "connections": {
+    "Build Response": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond to Webhook",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Storyboard Prompt": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Download Host Image",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Download Host Image": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Generate Storyboard",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Generate Storyboard": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Upload Storyboard",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Upload Storyboard": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Response",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Storyboard Prompt",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Validate Input",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "binaryMode": "separate"
+  },
+  "tags": [],
+  "createdAt": "2026-04-17T17:10:09.719Z",
+  "updatedAt": "2026-04-17T17:29:51.978Z"
+}

@@ -1,0 +1,351 @@
+{
+  "id": "BFGZfgTv8hGQbzee",
+  "name": "tts-batch",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tts/batch",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        192
+      ],
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "webhookId": "7862a5e7-afe3-4715-9934-c239268ed96b"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Validate input\nconst body = $input.item.json.body;\nconst project_id = body.project_id;\nconst scenes = body.scenes || [];\nconst language = body.language || \"en-US\";\n\nif (!project_id || !Array.isArray(scenes) || scenes.length === 0) {\n  throw new Error(\"Missing required fields: project_id and scenes array\");\n}\n\n// Return all scenes for batch processing\nreturn scenes.map((scene, index) => ({\n  json: {\n    project_id,\n    scene_id: scene.scene_id || `scene_${index + 1}`,\n    text: scene.text || scene.screenplay_text || \"\",\n    voice: scene.voice || body.default_voice || \"Algieba\",\n    language: scene.language || language,\n    total_scenes: scenes.length,\n    scene_index: index + 1\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        192
+      ],
+      "id": "validate-preprocess",
+      "name": "Validate & Preprocess"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst voice = $json.voice || \"Algieba\";\nconst language = $json.language || \"en-US\";\n\nreturn [{\n  json: {\n    ...$json,\n    voice_full: `en-US-Chirp3-HD-${voice}`\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        208
+      ],
+      "id": "build-voice",
+      "name": "Build Voice Name"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://texttospeech.googleapis.com/v1/text:synthesize",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": { \"text\": {{ JSON.stringify($json.text) }} },\n  \"voice\": {\n    \"languageCode\": \"en-US\",\n    \"name\": \"{{ $json.voice_full }}\"\n  },\n  \"audioConfig\": {\n    \"audioEncoding\": \"MP3\",\n    \"speakingRate\": 0.9\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        896,
+        208
+      ],
+      "id": "google-tts",
+      "name": "Request Google TTS",
+      "credentials": {
+        "googleCloudOAuth2Api": {
+          "id": "REDACTED",
+          "name": "TTS scenes"
+        },
+        "googleOAuth2Api": {
+          "id": "REDACTED",
+          "name": "TTS scenes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/media/metadata",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"media_url\": \"http://minio:9000/audio.assets/tts-audio/{{ $('Build Voice Name').item.json.project_id }}/{{ $(\"Validate & Preprocess\").item.json.scene_id }}.mp3\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1568,
+        208
+      ],
+      "id": "get-duration",
+      "name": "Get Audio Duration",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        912,
+        48
+      ],
+      "id": "respond-webhook",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "audio.assets",
+        "fileName": "=tts-audio/{{ $('Build Voice Name').item.json.project_id }}/{{ $('Build Voice Name').item.json.scene_id }}.mp3",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        208
+      ],
+      "id": "0d4a93d1-3d76-42af-b09b-950ebff78c97",
+      "name": "Upload a file",
+      "credentials": {
+        "s3": {
+          "id": "REDACTED",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "audioContent",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        208
+      ],
+      "id": "90af1484-2582-47b1-a2fe-e1b4bb4a3e6a",
+      "name": "Convert to File1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        448,
+        192
+      ],
+      "id": "split-batches",
+      "name": "Split Into Batches"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        688,
+        48
+      ],
+      "id": "aggregate-results",
+      "name": "Aggregate Results"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e3a43a93-3614-4fa8-8383-cda73faea227",
+              "name": "duration_seconds",
+              "value": "={{ $json.response.duration }}",
+              "type": "number"
+            },
+            {
+              "id": "2264f53d-c9d8-4248-b699-3f911a685ccb",
+              "name": "audio_url",
+              "value": "=http://minio:9000/audio.assets/tts-audio/{{ $('Build Voice Name').item.json.project_id }}/{{ $(\"Validate & Preprocess\").item.json.scene_id }}.mp3",
+              "type": "string"
+            },
+            {
+              "id": "be0454a9-e5d4-4a76-9661-a89900b0496f",
+              "name": "scene_id",
+              "value": "={{ $('Build Voice Name').item.json.scene_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1776,
+        208
+      ],
+      "id": "e3fff0ec-38a4-40cc-b78d-cb516b578b72",
+      "name": "Edit Fields"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate & Preprocess",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Preprocess": {
+      "main": [
+        [
+          {
+            "node": "Split Into Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Into Batches": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Voice Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Voice Name": {
+      "main": [
+        [
+          {
+            "node": "Request Google TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request Google TTS": {
+      "main": [
+        [
+          {
+            "node": "Convert to File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File1": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Get Audio Duration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Audio Duration": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Split Into Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    "tts"
+  ],
+  "createdAt": "2026-03-30T17:48:00.228Z",
+  "updatedAt": "2026-04-13T17:32:41.337Z"
+}

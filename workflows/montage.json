@@ -1,0 +1,149 @@
+{
+  "id": "UR2hvM9L9E5IN77O",
+  "name": "montage",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "montage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        -112
+      ],
+      "id": "ea2c8a26-0b55-4f3a-8a19-345e3a88cb91",
+      "name": "Webhook",
+      "webhookId": "460e4daf-be09-4232-9cea-2ce439304e9e"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').item.json;\nconst input = webhookData.body || webhookData;\nconst errors = [];\n\nif (!input.chapter_id) errors.push(\"Missing: chapter_id\");\nif (!input.scene_videos || !Array.isArray(input.scene_videos) || input.scene_videos.length === 0) {\n  errors.push(\"Missing or empty: scene_videos array\");\n}\n\nif (errors.length > 0) {\n  throw new Error(\"Validation failed: \" + errors.join(\", \"));\n}\n\n// ncat expects video_urls as array of objects with video_url key\nconst video_urls = input.scene_videos.map(url => ({ video_url: url }));\n\nreturn {\n  chapter_id: input.chapter_id,\n  scene_videos: input.scene_videos,\n  output: JSON.stringify({\n    video_urls: video_urls,\n    id: input.chapter_id\n  })\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -112
+      ],
+      "id": "validate-input-montage",
+      "name": "Validate Input"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/concatenate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.output }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "ddfb715c-3d43-435a-9c56-1bb9cab5b58d",
+      "name": "ncat: Concatenate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        -112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const validateInput = $('Validate Input').item.json;\nconst ncatResponse = $json;\n\nreturn {\n  success: true,\n  chapter_id: validateInput.chapter_id,\n  video_url: ncatResponse.response\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        -112
+      ],
+      "id": "build-response-montage",
+      "name": "Build Response"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        -112
+      ],
+      "id": "3a56a396-6f89-4154-a18e-20da0db1b132",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "ncat: Concatenate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ncat: Concatenate": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    "Kumbo"
+  ],
+  "createdAt": "2026-03-30T18:13:32.174Z",
+  "updatedAt": "2026-04-12T19:08:40.221Z"
+}

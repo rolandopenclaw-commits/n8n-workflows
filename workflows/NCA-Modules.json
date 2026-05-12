@@ -1,0 +1,993 @@
+{
+  "id": "bLXfkD5EfXDKlPWU",
+  "name": "NCA Modules",
+  "active": false,
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        3360
+      ],
+      "id": "d3c15554-dc9a-4d3d-a5d6-b4e719a84be5",
+      "name": "When clicking \u2018Test workflow\u2019"
+    },
+    {
+      "parameters": {
+        "content": "## Video",
+        "height": 280,
+        "width": 1760
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -336,
+        2320
+      ],
+      "typeVersion": 1,
+      "id": "aea54f08-1eea-46aa-94c1-ac016c269022",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/caption",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"video_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n  \"settings\": {\n    \"line_color\": \"#FFFFFF\",\n    \"word_color\": \"#FFFF00\",\n    \"all_caps\": false,\n    \"max_words_per_line\": 3,\n    \"font_size\": 60,\n    \"bold\": false,\n    \"italic\": false,\n    \"underline\": false,\n    \"strikeout\": false,\n    \"outline_width\": 3,\n    \"shadow_offset\": 4,\n    \"style\": \"highlight\",\n    \"font_family\": \"The Bold Font\",\n    \"position\": \"bottom_center\"\n  },\n  \"id\": \"gdrive-five\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -192,
+        2400
+      ],
+      "id": "e126ea1e-1eaf-43c3-8017-4182cdd60198",
+      "name": "Caption"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/thumbnail",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"video_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n    \"second\": 0,\n    \"id\": \"gdrive-five\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32,
+        2400
+      ],
+      "id": "f1a3b682-b512-4971-8cdc-aed795420148",
+      "name": "Thumbnail"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/concatenate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"video_urls\":[\n        {\"video_url\":\"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\"},\n        {\"video_url\":\"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\"}\n    ],\n    \"id\": \"2323\"\n}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        2400
+      ],
+      "id": "9b9656e7-34dd-4613-86e3-7407e23a8ab2",
+      "name": "Concatenate",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## FFmpeg Compose",
+        "height": 280,
+        "width": 1760,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -336,
+        2640
+      ],
+      "typeVersion": 1,
+      "id": "c2f2522c-186e-4484-bce9-9d2aed7554e2",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Toolkit",
+        "height": 280,
+        "width": 1760,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -336,
+        2000
+      ],
+      "typeVersion": 1,
+      "id": "99d7ec06-31e1-46bf-b3cd-98a36d75f58b",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"inputs\": [\n    {\n      \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Horizontal Video.mp4\"\n    }\n  ],\n  \"filters\": [\n    {\n      \"filter\": \"[0:v]trim=start=10:end=15,setpts=PTS-STARTPTS[vout];[0:a]atrim=start=10:end=15,asetpts=PTS-STARTPTS[aout]\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"options\": [\n        { \"option\": \"-map\", \"argument\": \"[vout]\" },\n        { \"option\": \"-map\", \"argument\": \"[aout]\" },\n        { \"option\": \"-c:v\", \"argument\": \"libx264\" },\n        { \"option\": \"-c:a\", \"argument\": \"aac\" }\n      ]\n    }\n  ],\n  \"metadata\": {\n    \"thumbnail\": true,\n    \"filesize\": true,\n    \"duration\": true,\n    \"bitrate\": true,\n    \"encoder\": true\n  },\n  \"id\": \"extract_clip_001\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -192,
+        2720
+      ],
+      "id": "fde7a09e-04e2-4692-acae-e08ee9c0f4a7",
+      "name": "Clip",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"inputs\": [\n    {\n      \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Horizontal Video.mp4\"\n    }\n  ],\n  \"filters\": [\n    {\n      \"filter\": \"[0:v]crop=658:1080:656:0,scale=1080:1920[v]\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"options\": [\n        {\n          \"option\": \"-map\",\n          \"argument\": \"[v]\"\n        },\n        {\n          \"option\": \"-map\",\n          \"argument\": \"0:a\"\n        },\n        {\n          \"option\": \"-c:a\",\n          \"argument\": \"copy\"\n        }\n      ]\n    }\n  ],\n  \"webhook_url\": \"https://sgplabs.app.n8n.cloud/webhook-test/8e468964-bef8-4e97-a65f-5674280f6788\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32,
+        2720
+      ],
+      "id": "ceaec5df-2201-41b0-adcf-f67a645756a2",
+      "name": "Crop",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"inputs\": [\n        {\n            \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/vertical%20pic%20skool.png\"\n        },\n        {\n            \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/tweet%20pic.png\"\n        }\n    ],\n    \"filters\": [\n        {\n            \"filter\": \"[0:v][1:v]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2+200[outv]\"\n        }\n    ],\n    \"outputs\": [\n        {\n            \"options\": [\n                {\n                    \"option\": \"-map\",\n                    \"argument\": \"[outv]\"\n                },\n                {\n                    \"option\": \"-f\",\n                    \"argument\": \"image2\"\n                }\n            ]\n        }\n    ],\n    \"id\": \"image-overlay\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        2720
+      ],
+      "id": "8a88fd68-2732-4f69-b23e-4fc5476c5537",
+      "name": "Tweet Pic"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"inputs\": [\n        {\n            \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\"\n        },\n        {\n            \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/tweet%20pic.png\"\n        }\n    ],\n    \"filters\": [\n        {\n            \"filter\": \"[0:v][1:v]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2+200[outv]\"\n        }\n    ],\n    \"outputs\": [\n        {\n            \"options\": [\n                {\n                    \"option\": \"-map\",\n                    \"argument\": \"[outv]\"\n                },\n                {\n                    \"option\": \"-map\",\n                    \"argument\": \"0:a\"\n                },\n                {\n                    \"option\": \"-c:v\",\n                    \"argument\": \"libx264\"\n                },\n                {\n                    \"option\": \"-c:a\",\n                    \"argument\": \"aac\"\n                },\n                {\n                    \"option\": \"-f\",\n                    \"argument\": \"mp4\"\n                }\n            ]\n        }\n    ],\n    \"id\": \"video-overlay\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        624,
+        2720
+      ],
+      "id": "c60bffa7-4249-4a3e-ac32-da1bb0ca7077",
+      "name": "Tweet Vid"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"inputs\": [\n    {\n      \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/reaction.mp4\",\n      \"options\": []\n    },\n    {\n      \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/skool%2Breaction.mp4\",\n      \"options\": []\n    }\n  ],\n  \"filters\": [\n    {\n      \"filter\": \"[1:v]scale=1080:1920[preScaledB];[preScaledB]scale=iw*0.45:ih*0.45[scaledB];[scaledB]drawbox=x=0:y=0:w=iw:h=ih:color=red@1:t=25[borderB];[0:v][borderB]overlay=x=500:y=950:enable='lte(t,39)'[videoOut]\"\n    },\n    {\n      \"filter\": \"[0:a][1:a]amix=inputs=2:duration=longest[audioOut]\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"options\": [\n        { \"option\": \"-map\", \"argument\": \"[videoOut]\" },\n        { \"option\": \"-map\", \"argument\": \"[audioOut]\" },\n        { \"option\": \"-c:v\", \"argument\": \"libx264\" },\n        { \"option\": \"-c:a\", \"argument\": \"aac\" },\n        { \"option\": \"-b:a\", \"argument\": \"192k\" }\n      ]\n    }\n  ],\n  \"id\": \"recWwxk2Xnc8lxJSu\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        832,
+        2720
+      ],
+      "id": "1ea40804-1e97-4b68-885c-b7c6c0844276",
+      "name": "Reaction"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"inputs\": [\n    {\n      \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/vertical%20pic%20skool.png\"\n    }\n  ],\n  \"filters\": [\n    {\n      \"filter\": \"drawtext=text='Hello, World!':fontsize=70:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"options\": [\n        {\n          \"option\": \"-frames:v\",\n          \"argument\": \"1\"\n        },\n        {\n          \"option\": \"-c:v\",\n          \"argument\": \"mjpeg\"\n        },\n        {\n          \"option\": \"-f\",\n          \"argument\": \"image2\"\n        }\n      ]\n    }\n  ],\n  \"id\": \"drawtext-no-font-example\"\n}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        2720
+      ],
+      "id": "09e15394-0d5f-45cb-be68-5af32530a50a",
+      "name": "Drawtext"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"id\": \"image_text_overlay\",\n  \"inputs\": [\n    {\n      \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Certificate.png\"\n    }\n  ],\n  \"filters\": [\n    {\n      \"filter\": \"[0:v]drawtext=text='Ved':fontsize=55:fontcolor=black:x=(w-text_w)/2:y=820[v1]\"\n    },\n    {\n      \"filter\": \"[v1]drawtext=text='Make Automation Workshop\\\\: Level 1':fontsize=30:fontcolor=black:x=(w-text_w)/2:y=1000[v2]\"\n    },\n    {\n      \"filter\": \"[v2]drawtext=text='Stephen G. Pope':fontsize=25:fontcolor=black:x=410:y=h-310[v3]\"\n    },\n    {\n      \"filter\": \"[v3]drawtext=text='9/13/24':fontsize=25:fontcolor=black:x=w-560:y=h-310[outv]\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"options\": [\n        {\n          \"option\": \"-map\",\n          \"argument\": \"[outv]\"\n        },\n        {\n          \"option\": \"-frames:v\",\n          \"argument\": \"1\"\n        },\n        {\n          \"option\": \"-c:v\",\n          \"argument\": \"mjpeg\"\n        },\n        {\n          \"option\": \"-f\",\n          \"argument\": \"image2\"\n        }\n      ]\n    }\n  ]\n}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1232,
+        2720
+      ],
+      "id": "8fd7af88-529a-4f3d-af9b-a9731ac2bb33",
+      "name": "Certificate"
+    },
+    {
+      "parameters": {
+        "content": "## Media",
+        "height": 280,
+        "width": 1760,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -336,
+        2960
+      ],
+      "typeVersion": 1,
+      "id": "11bb20d4-5f74-4f8c-a095-ca923645679a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/media/convert/mp3",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"media_url\":\"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n    \"bitrate\": \"256k\",\n    \"sample_rate\": 44100,\n    \"id\": \"five\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -192,
+        3040
+      ],
+      "id": "765c67ec-8ad8-4068-a9a6-8ac6027ead10",
+      "name": "Convert MP3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/media/transcribe",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"media_url\":\"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n    \"task\": \"transcribe\",\n    \"include_text\": true,\n    \"include_srt\": true,\n    \"response_type\": \"direct\",\n    \"language\": \"en\",\n    \"words_per_line\": 4\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32,
+        3040
+      ],
+      "id": "dc95d352-5edc-49c4-b6a9-3aa0dbc42ec2",
+      "name": "Transcribe"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/media/silence",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"media_url\":\"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n    \"duration\": 0.1\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        3040
+      ],
+      "id": "0e8319b8-28fa-4223-ab7a-de5be4b5aa1a",
+      "name": "Silence"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/BETA/media/download",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"media_url\":\"https://www.tiktok.com/@stephengpope/video/7496166998871739694\",\n    \"thumbnails\": {\n        \"download\": true\n    }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        3040
+      ],
+      "id": "a48e2a80-e1e7-44b6-b3c1-97dcffd5dae9",
+      "name": "Donwload (BETA)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/media/convert",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"media_url\":\"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n    \"format\": \"mp3\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        624,
+        3040
+      ],
+      "id": "598580cf-4ffb-4047-8d2c-596ac068abe6",
+      "name": "Convert"
+    },
+    {
+      "parameters": {
+        "content": "## Image",
+        "height": 280,
+        "width": 340,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -336,
+        3280
+      ],
+      "typeVersion": 1,
+      "id": "3b3156fb-24d3-4a9d-9aba-769a8aa7cbf5",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "url": "https://ncat:8080//authenticate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -192,
+        2080
+      ],
+      "id": "ddd0f420-f8d0-4883-aaba-3da457bbab29",
+      "name": "Authenticate"
+    },
+    {
+      "parameters": {
+        "url": "http://ncat:8080/v1/toolkit/test",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32,
+        2080
+      ],
+      "id": "4fb30f9a-6256-41a5-a30b-08b43feba6cf",
+      "name": "Test"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/image/convert/video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"image_url\":\"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Image.png\",\n    \"length\": 10,\n    \"frame_rate\": 25,\n    \"zoom_speed\": 6,\n    \"id\": \"local-extract\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -192,
+        3360
+      ],
+      "id": "0c9d1bcb-1fbb-479f-a43b-e281d71f386b",
+      "name": "Convert Video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Code",
+        "height": 280,
+        "width": 300
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        64,
+        3280
+      ],
+      "typeVersion": 1,
+      "id": "c4be0ddf-f3a9-489c-b39b-2ecbe86a9a93",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/code/execute/python",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"code\": \"# Initial array of titles\\ntitles = [\\n    {\\\"title\\\": \\\"how i learned to code in 24 hours straight\\\"},\\n    {\\\"title\\\": \\\"making the perfect pizza at 3am\\\"},\\n    {\\\"title\\\": \\\"i survived on $1 food for a week\\\"},\\n    {\\\"title\\\": \\\"trying weird food combinations you suggested\\\"},\\n    {\\\"title\\\": \\\"we bought everything in the store challenge\\\"},\\n    {\\\"title\\\": \\\"my morning routine 2024 updated\\\"},\\n    {\\\"title\\\": \\\"exploring abandoned mansion gone wrong\\\"},\\n    {\\\"title\\\": \\\"pranking my roommate they moved out\\\"},\\n    {\\\"title\\\": \\\"what i eat in a day as a chef\\\"},\\n    {\\\"title\\\": \\\"building a treehouse in one day\\\"},\\n    {\\\"title\\\": \\\"i lived in a tiny house for 30 days\\\"},\\n    {\\\"title\\\": \\\"transforming my backyard into a water park\\\"},\\n    {\\\"title\\\": \\\"cooking every recipe in grandma's cookbook\\\"},\\n    {\\\"title\\\": \\\"learning 10 languages in 10 months\\\"},\\n    {\\\"title\\\": \\\"ultimate gaming setup tour 2024\\\"},\\n    {\\\"title\\\": \\\"surviving in the wilderness for 48 hours\\\"},\\n    {\\\"title\\\": \\\"turning my car into a mobile office\\\"},\\n    {\\\"title\\\": \\\"i bought everything facebook advertised to me\\\"},\\n    {\\\"title\\\": \\\"secret menu items at famous restaurants\\\"},\\n    {\\\"title\\\": \\\"surprising my parents with their dream vacation\\\"},\\n    {\\\"title\\\": \\\"extreme room makeover on a budget\\\"},\\n    {\\\"title\\\": \\\"trying every item at mcdonalds in one day\\\"},\\n    {\\\"title\\\": \\\"building a robot that does my homework\\\"},\\n    {\\\"title\\\": \\\"living on a boat for a month\\\"},\\n    {\\\"title\\\": \\\"testing viral tiktok life hacks\\\"},\\n    {\\\"title\\\": \\\"transforming my garage into a movie theater\\\"},\\n    {\\\"title\\\": \\\"cooking with random ingredients challenge\\\"},\\n    {\\\"title\\\": \\\"visiting every state in 50 days\\\"},\\n    {\\\"title\\\": \\\"making a dress from recycled materials\\\"},\\n    {\\\"title\\\": \\\"i followed a victorian schedule for a week\\\"},\\n    {\\\"title\\\": \\\"turning my basement into an arcade\\\"},\\n    {\\\"title\\\": \\\"trying every coffee drink at starbucks\\\"},\\n    {\\\"title\\\": \\\"building a treehouse mansion for my dog\\\"},\\n    {\\\"title\\\": \\\"learning to skateboard in 24 hours\\\"},\\n    {\\\"title\\\": \\\"extreme grocery shopping challenge\\\"},\\n    {\\\"title\\\": \\\"converting my van into a tiny home\\\"},\\n    {\\\"title\\\": \\\"making a song using only kitchen sounds\\\"},\\n    {\\\"title\\\": \\\"reading 100 books in 100 days\\\"},\\n    {\\\"title\\\": \\\"training for a marathon in 30 days\\\"},\\n    {\\\"title\\\": \\\"living without technology for a week\\\"},\\n    {\\\"title\\\": \\\"cooking breakfast with my eyes closed\\\"},\\n    {\\\"title\\\": \\\"building a secret underground bunker\\\"},\\n    {\\\"title\\\": \\\"trying every ice cream flavor in my city\\\"},\\n    {\\\"title\\\": \\\"making clothes from dollar store items\\\"},\\n    {\\\"title\\\": \\\"transforming my attic into a gaming room\\\"},\\n    {\\\"title\\\": \\\"surviving on instant noodles for a month\\\"},\\n    {\\\"title\\\": \\\"building a miniature city in my backyard\\\"},\\n    {\\\"title\\\": \\\"learning to juggle chainsaws blindfolded\\\"},\\n    {\\\"title\\\": \\\"exploring abandoned theme park at night\\\"},\\n    {\\\"title\\\": \\\"making a gourmet meal in a microwave\\\"}\\n]\\n\\n# Update the titles in the array\\nfor i in range(len(titles)):\\n    titles[i][\\\"title\\\"] = \\\" \\\".join(word.capitalize() for word in titles[i][\\\"title\\\"].split())\\n\\nreturn titles\",\n    \"timeout\": 30\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        3360
+      ],
+      "id": "18c35a1d-f7bd-4df0-97be-190dbe7716dc",
+      "name": "Execute Python",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## S3 Upload",
+        "height": 280,
+        "width": 300,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        400,
+        3280
+      ],
+      "typeVersion": 1,
+      "id": "1c587db3-1995-4000-9504-7f20df1636bd",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/s3/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"id\": \"media\",\n    \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n    \"filename\": \"vertical Video.png\",\n    \"public\": true\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        512,
+        3360
+      ],
+      "id": "51f9d65c-b36d-48a9-8842-b4b1aca891f2",
+      "name": "Upload S3"
+    },
+    {
+      "parameters": {
+        "content": "## Audio",
+        "height": 280,
+        "width": 300,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        752,
+        3280
+      ],
+      "typeVersion": 1,
+      "id": "08d6a67a-2515-465b-ab86-3b27d90f8451",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/audio/concatenate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"audio_urls\":[\n        {\"audio_url\":\"https://storage.googleapis.com/sgplabs-general-storage/I'm%20Back.mp3\"},\n        {\"audio_url\":\"https://storage.googleapis.com/sgplabs-general-storage/I'm%20Back.mp3\"}\n    ],\n    \"id\": \"2323\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        848,
+        3360
+      ],
+      "id": "1eaba9f2-1f4f-4013-bad9-8a95877f5081",
+      "name": "Concatenate Audio",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/media/metadata",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"media_url\":\"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        832,
+        3040
+      ],
+      "id": "a7d1800e-24c4-4b4e-b3b7-9aee51ab25b6",
+      "name": "metadata (video)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/media/metadata",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"media_url\":\"https://sgp-labs.nyc3.digitaloceanspaces.com/sgp-labs/b58e5b92-e4c5-431c-83f6-62dce70c90a8.mp3\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        3040
+      ],
+      "id": "98ec9657-dfa1-4c15-92a2-16baed14d98f",
+      "name": "metadata (Audio)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/split",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"video_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n  \"splits\": [\n    {\n      \"start\": \"00:00:01\",\n      \"end\": \"00:00:02\"\n    },\n    {\n      \"start\": \"00:00:03\",\n      \"end\": \"00:00:05\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        624,
+        2400
+      ],
+      "id": "bb0f1528-5426-4650-bfcf-b9dbd9ad6da1",
+      "name": "Split Video"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/cut",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"video_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n  \"cuts\": [\n    {\n      \"start\": \"00:00:01\",\n      \"end\": \"00:00:02\"\n    },\n    {\n      \"start\": \"00:00:03\",\n      \"end\": \"00:00:05\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        2400
+      ],
+      "id": "cc1fed8d-b3c6-4905-9e01-600a88cbcd0a",
+      "name": "Cut Video"
+    },
+    {
+      "parameters": {
+        "content": "## Webhooks",
+        "height": 280,
+        "width": 360,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1088,
+        3280
+      ],
+      "typeVersion": 1,
+      "id": "5d16ce99-ce49-4b75-9aca-f2e469e56b63",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## Background + Polling",
+        "height": 460,
+        "width": 1760,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -336,
+        3600
+      ],
+      "typeVersion": 1,
+      "id": "0046a32b-db0f-4bbf-a9a1-124c7a91cbc5",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/caption",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"video_url\": \"http://minio:9000/nca-toolkit/3b46a2ca-bd96-45c8-81fe-2be3abc9e293.mp4\",\n  \"settings\": {\n    \"line_color\": \"#FFFFFF\",\n    \"word_color\": \"#FFFF00\",\n    \"all_caps\": false,\n    \"max_words_per_line\": 3,\n    \"font_size\": 60,\n    \"bold\": false,\n    \"italic\": false,\n    \"underline\": false,\n    \"strikeout\": false,\n    \"outline_width\": 3,\n    \"shadow_offset\": 4,\n    \"style\": \"highlight\",\n    \"font_family\": \"The Bold Font\",\n    \"position\": \"bottom_center\"\n  },\n  \"id\": \"gdrive-five\",\n  \"webhook_url\": \"\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        3728
+      ],
+      "id": "afb2bd32-c60f-47eb-948e-88ee5187047e",
+      "name": "Caption1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/toolkit/job/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"job_id\": \"{{ $('Caption1').item.json.job_id}}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        512,
+        3728
+      ],
+      "id": "9ea6a2f0-be01-4c01-b72f-0dcf0652cd04",
+      "name": "Job Status"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        3840
+      ],
+      "id": "fe274d2d-9646-4ec9-a9c8-5f6eb59879bd",
+      "name": "Wait",
+      "webhookId": "67d2a671-d870-4dfb-8265-4a9c4a703a30"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1bd32662-74ef-4c9f-84fa-6d6687056da3",
+              "leftValue": "={{ $json.response.job_status }}",
+              "rightValue": "done",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        848,
+        3728
+      ],
+      "id": "fa3e9a09-51cf-4e25-a434-e7a40ae17cb3",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Job Status').item.json.response.response.response }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        3680
+      ],
+      "id": "ef1576ac-5bc1-4c7c-bdc3-4c563bbcd055",
+      "name": "Download File"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/audio/concatenate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"audio_urls\":[\n        {\"audio_url\":\"https://storage.googleapis.com/sgplabs-general-storage/I'm%20Back.mp3\"},\n        {\"audio_url\":\"https://storage.googleapis.com/sgplabs-general-storage/I'm%20Back.mp3\"}\n    ],\n    \"id\": \"2323\",\n    \"webhook_url\": \"https://sgplabs.app.n8n.cloud/webhook-test/8e468964-bef8-4e97-a65f-5674280f6788\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        3360
+      ],
+      "id": "d228bb21-f983-4c3d-a15e-ef2a6f6770f9",
+      "name": "Concatenate Audio1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/toolkit/jobs/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"since_seconds\": 600\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        2080
+      ],
+      "id": "17ae4518-e472-4570-b00e-2f784005625b",
+      "name": "Jobs Status",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/toolkit/job/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"job_id\": \"01998a29-457e-4c5b-9204-90e602fe8e3c\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        2080
+      ],
+      "id": "0c1beb07-ee26-49cb-9b4e-6a31539f050c",
+      "name": "Job Status1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/trim",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"video_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\",\n    \"start\": \"00:00:05\",\n    \"end\": \"00:00:07\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        832,
+        2400
+      ],
+      "id": "8db17ea3-716b-44e1-be1f-f41146689dfe",
+      "name": "Trim"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"inputs\": [\n    {\n      \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/Vertical%20Video.mp4\"\n    },\n    {\n      \"file_url\": \"https://storage.googleapis.com/sgplabs-general-storage/NCA%20Logo.png\"\n    }\n  ],\n  \"filters\": [\n    {\n      \"filter\": \"[1:v]scale=150:150[logo];[0:v][logo]overlay=x=50:y=main_h-overlay_h-50\"\n    }\n  ],\n  \"outputs\": [\n    {\n      \"options\": [\n        { \"option\": \"-f\", \"argument\": \"mp4\" },\n        { \"option\": \"-c:v\", \"argument\": \"libx264\" }\n      ]\n    }\n  ],\n  \"metadata\": {\n    \"thumbnail\": true,\n    \"filesize\": true,\n    \"duration\": true,\n    \"bitrate\": true\n  },\n  \"id\": \"overlay_logo\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        2720
+      ],
+      "id": "1c7a57c0-fb7e-431e-8039-d3d2b65ffd9c",
+      "name": "Logo"
+    }
+  ],
+  "connections": {
+    "When clicking \u2018Test workflow\u2019": {
+      "main": [
+        []
+      ]
+    },
+    "Caption1": {
+      "main": [
+        [
+          {
+            "node": "Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job Status": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": [],
+  "createdAt": "2026-03-31T07:28:57.031Z",
+  "updatedAt": "2026-04-13T17:42:34.768Z"
+}

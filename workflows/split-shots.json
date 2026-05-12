@@ -1,0 +1,177 @@
+{
+  "id": "G66UwpWwHUFlxoB1",
+  "name": "split-shots",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "split-shots",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "adc48afa-1c00-43a3-b9cd-b93fff57d0a2",
+      "name": "Webhook",
+      "webhookId": "8c09ebb9-b1fe-4ea7-a369-3516e8d4613a"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate input and calculate shot count\nconst input = $input.item.json.body || $input.item.json;\nconst errors = [];\n\n// Validation\nif (!input.scene_id) errors.push(\"Missing required field: scene_id\");\nif (!input.narration_text) errors.push(\"Missing required field: narration_text\");\nif (!input.audio_duration && input.audio_duration !== 0) {\n  errors.push(\"Missing required field: audio_duration\");\n}\n\nif (errors.length > 0) {\n  throw new Error(\"Validation failed: \" + errors.join(\", \"));\n}\n\n// Calculate shot count based on audio duration\nconst duration = parseFloat(input.audio_duration);\nlet shotCount = 2;\nif (duration >= 10 && duration <= 25) shotCount = 3;\nif (duration > 25) shotCount = 4;\n\n// Calculate duration per shot (evenly distributed)\nconst durationPerShot = Math.round((duration / shotCount) * 100) / 100;\n\nreturn {\n  scene_id: input.scene_id,\n  narration_text: input.narration_text,\n  audio_duration: duration,\n  shot_count: shotCount,\n  duration_per_shot: durationPerShot\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "validate-calculate",
+      "name": "Validate & Calculate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $input.item.json;\nconst validateData = $json;\n\nlet content =\n  aiResponse.output ||\n  aiResponse.choices?.[0]?.message?.content ||\n  aiResponse.message?.content ||\n  \"\";\n\ncontent = content.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\nlet shots;\n\ntry {\n  shots = JSON.parse(content);\n} catch {\n  const sentences = validateData.narration_text.match(/[^.!?]+[.!?]+/g) || [validateData.narration_text];\n\n  shots = sentences.slice(0, validateData.shot_count).map((s, i) => ({\n    shot_num: i + 1,\n    narration: s.trim()\n  }));\n}\n\nwhile (shots.length < validateData.shot_count) {\n  shots.push({\n    shot_num: shots.length + 1,\n    narration: \"\"\n  });\n}\n\nshots = shots.slice(0, validateData.shot_count);\n\nshots = shots.map((shot, index) => ({\n  shot_num: index + 1,\n  narration: shot.narration || shot.text || \"\",\n  duration_seconds: validateData.duration_per_shot\n}));\n\nreturn {\n  scene_id: validateData.scene_id,\n  shots,\n  total_duration: validateData.audio_duration\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        0
+      ],
+      "id": "parse-response",
+      "name": "Parse & Build Shots"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        992,
+        0
+      ],
+      "id": "respond-webhook",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Split this narration into exactly {{ $json.shot_count }} shots. Each shot should be a complete visual moment. Return JSON array only.\n\nNarration: {{ $json.narration_text }}",
+        "options": {
+          "systemMessage": "=You are a film editor. Split scene narration into shots. Return ONLY a valid JSON array, no markdown, no explanation. \n\nEach shot: {\\\"shot_num\\\": number, \\\"narration\\\": \\\"string\\\"}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        432,
+        0
+      ],
+      "id": "f93be825-2ccb-48b8-8113-19311b9cfed9",
+      "name": "ai splitter"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "Qwen3.5-2B-Q4_K_M.gguf",
+          "mode": "list",
+          "cachedResultName": "Qwen3.5-2B-Q4_K_M.gguf"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        416,
+        208
+      ],
+      "id": "a1e68d99-fcda-4792-828c-bee9651d0b35",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "REDACTED",
+          "name": "qwen-2b"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate & Calculate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Calculate": {
+      "main": [
+        [
+          {
+            "node": "ai splitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Build Shots": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ai splitter": {
+      "main": [
+        [
+          {
+            "node": "Parse & Build Shots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "ai splitter",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    "shots"
+  ],
+  "createdAt": "2026-03-30T18:01:47.283Z",
+  "updatedAt": "2026-04-07T00:34:51.153Z"
+}

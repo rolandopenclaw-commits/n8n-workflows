@@ -1,0 +1,238 @@
+{
+  "id": "aIacg0vjZflvbXlL",
+  "name": "shots combiner",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "id": "b3b6c1b5-d0c2-467e-9397-b534afbd672d",
+      "name": "Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "shot-combiner",
+        "responseMode": "responseNode"
+      },
+      "position": [
+        -480,
+        -112
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "951f96c0-9605-4752-a3a7-b2a808547e22"
+    },
+    {
+      "id": "validate-input-002",
+      "name": "Validate Input",
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').item.json;\nconst input = webhookData.body || webhookData;\nconst errors = [];\n\nif (!input.scene_id) errors.push(\"Missing: scene_id\");\nif (!input.video_urls || !Array.isArray(input.video_urls) || input.video_urls.length === 0) {\n  errors.push(\"Missing or empty: video_urls array\");\n}\nconst hasAudio = !!input.audio_url;\n\nif (errors.length > 0) {\n  throw new Error(\"Validation failed: \" + errors.join(\", \"));\n}\n\nreturn {\n  scene_id: input.scene_id,\n  audio_url: input.audio_url || null,\n  has_audio: hasAudio,\n  output: JSON.stringify({\n    video_urls: input.video_urls,\n    id: input.scene_id\n  })\n};"
+      },
+      "position": [
+        -240,
+        -112
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      },
+      "id": "52cd1354-760b-4669-8329-73aa49b7c4de",
+      "name": "ncat: Concatenate Videos",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ $json.output }}",
+        "method": "POST",
+        "options": {
+          "timeout": 300000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "http://ncat:8080/v1/video/concatenate"
+      },
+      "position": [
+        40,
+        -112
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "if-has-audio",
+      "name": "Has Audio?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.has_audio }}",
+              "operator": {
+                "operation": "equals",
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        200,
+        -112
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      },
+      "id": "compose-001",
+      "name": "ncat: Add Audio",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={\n  \"inputs\": [\n    {\"file_url\": \"{{ $json.response }}\"},\n    {\"file_url\": \"{{ $('Validate Input').item.json.audio_url }}\"}\n  ],\n  \"outputs\": [\n    {\n      \"options\": [\n        {\"option\": \"-map\", \"argument\": \"0:v:0\"},\n        {\"option\": \"-map\", \"argument\": \"1:a:0\"},\n        {\"option\": \"-c:v\", \"argument\": \"copy\"},\n        {\"option\": \"-c:a\", \"argument\": \"aac\"},\n        {\"option\": \"-shortest\"}\n      ]\n    }\n  ]\n}",
+        "method": "POST",
+        "options": {
+          "timeout": 300000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "http://ncat:8080/v1/ffmpeg/compose"
+      },
+      "position": [
+        400,
+        -112
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "build-response-001",
+      "name": "Build Response",
+      "parameters": {
+        "jsCode": "const validateInput = $('Validate Input').item.json;\nlet videoUrl = '';\n\nif ($json.response && Array.isArray($json.response) && $json.response[0] && $json.response[0].file_url) {\n  videoUrl = $json.response[0].file_url;\n} else if ($json.response && typeof $json.response === 'string') {\n  videoUrl = $json.response;\n} else if ($json.response && $json.response.file_url) {\n  videoUrl = $json.response.file_url;\n}\n\nreturn {\n  success: true,\n  scene_id: validateInput.scene_id,\n  video_url: videoUrl,\n  audio_url: validateInput.audio_url || null\n};"
+      },
+      "position": [
+        600,
+        -112
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "f9efca59-7ae0-4d54-b5de-70a8d39a6cff",
+      "name": "Respond to Webhook",
+      "parameters": {
+        "options": {}
+      },
+      "position": [
+        800,
+        -112
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5
+    }
+  ],
+  "connections": {
+    "Build Response": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond to Webhook",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Has Audio?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "ncat: Add Audio",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Response",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "ncat: Concatenate Videos",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Validate Input",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "ncat: Add Audio": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Response",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "ncat: Concatenate Videos": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Has Audio?",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    "Kumbo"
+  ],
+  "createdAt": "2026-03-30T18:15:23.071Z",
+  "updatedAt": "2026-04-19T17:22:24.912Z"
+}

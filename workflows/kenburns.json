@@ -1,0 +1,195 @@
+{
+  "id": "ljd6Kermi5IpNha6",
+  "name": "kenburns",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "id": "acc6d202-5ee9-4387-8b0c-d44ec0c17be4",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -480,
+        -112
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kenburns",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "a213bd8a-0df0-46e7-9b9f-322e01bd84b1"
+    },
+    {
+      "id": "validate-input-001",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -112
+      ],
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').item.json;\nconst input = webhookData.body || webhookData;\nconst errors = [];\n\nif (!input.shot_id) errors.push(\"Missing: shot_id\");\nif (!input.scene_id) errors.push(\"Missing: scene_id\");\nif (!input.image_url) errors.push(\"Missing: image_url\");\nif (!input.duration) errors.push(\"Missing: duration\");\n\nif (errors.length > 0) {\n  throw new Error(\"Validation failed: \" + errors.join(\", \"));\n}\n\nreturn {\n  shot_id: input.shot_id,\n  scene_id: input.scene_id,\n  image_url: input.image_url,\n  duration: parseFloat(input.duration) || 4.0,\n  motion_type: input.motion_type || input.motion || \"zoom_in\",\n  intensity: input.options?.intensity || 0.15,\n  easing: input.options?.easing || \"ease-in-out\"\n};"
+      }
+    },
+    {
+      "id": "b2ae6a46-ba10-42eb-b5e4-3c63b0933b73",
+      "name": "ncat: Image to Video (Ken Burns)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        -112
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/image/convert/video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"image_url\": \"{{ $('Validate Input').item.json.image_url }}\",\n  \"length\": {{ $('Validate Input').item.json.duration }},\n  \"frame_rate\": 25,\n  \"zoom_speed\": {{ $('Validate Input').item.json.intensity > 0.15 ? 1.35 : 1.25 }},\n  \"id\": \"{{ $('Validate Input').item.json.shot_id }}\"\n}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "id": "a189c711-9b3d-43c0-9d33-bddb1d6f8251",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        280,
+        -112
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "shot-id",
+              "name": "shot_id",
+              "value": "={{ $('Validate Input').item.json.shot_id }}",
+              "type": "string"
+            },
+            {
+              "id": "scene-id",
+              "name": "scene_id",
+              "value": "={{ $('Validate Input').item.json.scene_id }}",
+              "type": "string"
+            },
+            {
+              "id": "video-url",
+              "name": "video_url",
+              "value": "={{ $json.response }}",
+              "type": "string"
+            },
+            {
+              "id": "duration",
+              "name": "duration",
+              "value": "={{ $('Validate Input').item.json.duration }}",
+              "type": "number"
+            },
+            {
+              "id": "motion-type",
+              "name": "motion_type",
+              "value": "={{ $('Validate Input').item.json.motion_type }}",
+              "type": "string"
+            },
+            {
+              "id": "resolution",
+              "name": "resolution",
+              "value": "1920x1080",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5ae68966-cd8b-4f4b-8c98-6ade396f38e7",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        520,
+        -112
+      ],
+      "parameters": {
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "ncat: Image to Video (Ken Burns)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ncat: Image to Video (Ken Burns)": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    "Anima"
+  ],
+  "createdAt": "2026-03-30T18:08:44.625Z",
+  "updatedAt": "2026-04-13T23:35:06.783Z"
+}

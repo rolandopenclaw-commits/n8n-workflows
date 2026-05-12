@@ -1,0 +1,220 @@
+{
+  "id": "Rj8ZQ13AfB4mN4Af",
+  "name": "custom-animation",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "id": "webhook-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -480,
+        -112
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "custom-animation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "a213bd8a-0df0-46e7-9b9f-322e01bd84c1"
+    },
+    {
+      "id": "validate-001",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -112
+      ],
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').item.json;\nconst input = webhookData.body || webhookData;\nconst errors = [];\n\nif (!input.shot_id) errors.push(\"Missing: shot_id\");\nif (!input.scene_id) errors.push(\"Missing: scene_id\");\nif (!input.image_url) errors.push(\"Missing: image_url\");\nif (!input.duration) errors.push(\"Missing: duration\");\n\nconst validEffects = [\n  'fade_in', 'fade_out', 'fade_in_out',\n  'pan_left', 'pan_right', 'pan_up', 'pan_down',\n  'opacity_reveal',\n  'reveal_pan_right', 'reveal_pan_left', 'reveal_pan_up', 'reveal_pan_down',\n  'static', 'custom'\n];\nconst effect = input.effect || 'fade_in_out';\nif (effect !== 'custom' && !validEffects.includes(effect)) {\n  errors.push(`Invalid effect '${effect}'. Must be one of: ${validEffects.join(', ')}, or 'custom' with ffmpeg_filter`);\n}\nif (effect === 'custom' && !input.ffmpeg_filter) {\n  errors.push(\"custom effect requires ffmpeg_filter parameter\");\n}\n\nif (errors.length > 0) {\n  throw new Error(\"Validation failed: \" + errors.join(\", \"));\n}\n\nreturn {\n  shot_id: input.shot_id,\n  scene_id: input.scene_id,\n  image_url: input.image_url,\n  duration: parseFloat(input.duration) || 4.0,\n  effect: effect,\n  ffmpeg_filter: input.ffmpeg_filter || null,\n  intensity: input.intensity || 0.15,\n  fps: parseInt(input.fps) || 25\n};"
+      }
+    },
+    {
+      "id": "filter-001",
+      "name": "Build FFmpeg Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        -112
+      ],
+      "parameters": {
+        "jsCode": "const input = $input.item.json;\nconst effect = input.effect;\nconst duration = input.duration;\nconst fps = input.fps;\nconst totalFrames = Math.round(duration * fps);\nconst w = 1920;\nconst h = 1080;\nconst uw = 3840;\nconst uh = 2160;\n\nif (input.ffmpeg_filter) {\n  return { ...input, filter: input.ffmpeg_filter };\n}\n\nconst presets = {};\npresets.fade_in = `[0:v]scale=${w}:${h},fps=${fps},fade=t=in:st=0:d=1,format=yuv420p[v]`;\npresets.fade_out = `[0:v]scale=${w}:${h},fps=${fps},fade=t=out:st=${Math.max(0, duration - 1)}:d=1,format=yuv420p[v]`;\npresets.fade_in_out = `[0:v]scale=${w}:${h},fps=${fps},fade=t=in:st=0:d=1,fade=t=out:st=${Math.max(0, duration - 1)}:d=1,format=yuv420p[v]`;\npresets.opacity_reveal = `[0:v]scale=${uw}:${uh},fps=${fps},format=yuva420p,fade=t=in:st=0:d=2:alpha=1,format=yuv420p[v]`;\npresets.static = `[0:v]scale=${w}:${h},fps=${fps},format=yuv420p[v]`;\n// Pan effects (use crop on upscaled image)\nconst panSpeed = input.intensity || 0.25;\npresets.pan_left = `[0:v]scale=${uw}:${uh},crop=${w}:${h}:'iw/2-ow/2+iw/2*t/${duration}*${panSpeed}':'ih/2-oh/2',fps=${fps},format=yuv420p[v]`;\npresets.pan_right = `[0:v]scale=${uw}:${uh},crop=${w}:${h}:'iw/2-ow/2-iw/2*t/${duration}*${panSpeed}':'ih/2-oh/2',fps=${fps},format=yuv420p[v]`;\npresets.pan_up = `[0:v]scale=${uw}:${uh},crop=${w}:${h}:'iw/2-ow/2':'ih/2-oh/2+ih/2*t/${duration}*${panSpeed}',fps=${fps},format=yuv420p[v]`;\npresets.pan_down = `[0:v]scale=${uw}:${uh},crop=${w}:${h}:'iw/2-ow/2':'ih/2-oh/2-ih/2*t/${duration}*${panSpeed}',fps=${fps},format=yuv420p[v]`;\n// Composite: opacity reveal + pan right (2s reveal then 4s pan)\nconst revealDur = Math.min(2, duration * 0.33);\npresets.reveal_pan_right = `[0:v]scale=${uw}:${uh},crop=${w}:${h}:'iw/2-ow/2-iw/4*t/${duration}':'ih/2-oh/2',fps=${fps},format=yuva420p,fade=t=in:st=0:d=${revealDur}:alpha=1,format=yuv420p[v]`;\npresets.reveal_pan_left = `[0:v]scale=${uw}:${uh},crop=${w}:${h}:'iw/2-ow/2+iw/4*t/${duration}':'ih/2-oh/2',fps=${fps},format=yuva420p,fade=t=in:st=0:d=${revealDur}:alpha=1,format=yuv420p[v]`;\npresets.reveal_pan_up = `[0:v]scale=${uw}:${uh},crop=${w}:${h}:'iw/2-ow/2':'ih/2-oh/2+ih/4*t/${duration}',fps=${fps},format=yuva420p,fade=t=in:st=0:d=${revealDur}:alpha=1,format=yuv420p[v]`;\npresets.reveal_pan_down = `[0:v]scale=${uw}:${uh},crop=${w}:${h}:'iw/2-ow/2':'ih/2-oh/2-ih/4*t/${duration}',fps=${fps},format=yuva420p,fade=t=in:st=0:d=${revealDur}:alpha=1,format=yuv420p[v]`;\n\nconst filter = presets[effect] || presets.fade_in_out;\nreturn { ...input, filter };"
+      }
+    },
+    {
+      "id": "response-001",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        520,
+        -112
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "shot-id",
+              "name": "shot_id",
+              "value": "={{ $('Validate Input').item.json.shot_id }}",
+              "type": "string"
+            },
+            {
+              "id": "scene-id",
+              "name": "scene_id",
+              "value": "={{ $('Validate Input').item.json.scene_id }}",
+              "type": "string"
+            },
+            {
+              "id": "video-url",
+              "name": "video_url",
+              "value": "={{ $json.response }}",
+              "type": "string"
+            },
+            {
+              "id": "duration",
+              "name": "duration",
+              "value": "={{ $('Validate Input').item.json.duration }}",
+              "type": "number"
+            },
+            {
+              "id": "effect",
+              "name": "effect",
+              "value": "={{ $('Validate Input').item.json.effect }}",
+              "type": "string"
+            },
+            {
+              "id": "resolution",
+              "name": "resolution",
+              "value": "1920x1080",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "respond-001",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        760,
+        -112
+      ],
+      "parameters": {
+        "options": {}
+      }
+    },
+    {
+      "id": "compose-003",
+      "name": "Call ncat Compose",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        -112
+      ],
+      "parameters": {
+        "jsonBody": "={{ JSON.stringify({ inputs: [{ file_url: $('Validate Input').item.json.image_url, options: [{ option: '-loop', argument: '1' }, { option: '-t', argument: String(Math.round($('Validate Input').item.json.duration)) }] }], filters: [{ filter: $('Build FFmpeg Filter').item.json.filter }], outputs: [{ options: [{ option: '-map', argument: '[v]' }, { option: '-c:v', argument: 'libx264' }, { option: '-pix_fmt', argument: 'yuv420p' }, { option: '-t', argument: String(Math.round($('Validate Input').item.json.duration)) }] }], id: $('Validate Input').item.json.shot_id }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 300000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "http://ncat:8080/v1/ffmpeg/compose",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Validate Input",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build FFmpeg Filter",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond to Webhook",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build FFmpeg Filter": {
+      "main": [
+        [
+          {
+            "node": "Call ncat Compose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call ncat Compose": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "tags": [],
+  "createdAt": "2026-04-13T23:39:54.246Z",
+  "updatedAt": "2026-04-13T23:56:35.025Z"
+}

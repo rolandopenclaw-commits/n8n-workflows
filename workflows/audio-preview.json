@@ -1,0 +1,337 @@
+{
+  "id": "GZH6W2dt1SKeLOfv",
+  "name": "audio-preview",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "project_id",
+              "name": "project_id",
+              "value": "={{ $(\"Webhook\").item.json.body.project_id }}",
+              "type": "string"
+            },
+            {
+              "id": "chunk_index",
+              "name": "chunk_index",
+              "value": "={{ $(\"Webhook\").item.json.body.chunk_index }}",
+              "type": "number"
+            },
+            {
+              "id": "chunk_audio_url",
+              "name": "chunk_audio_url",
+              "value": "=http://minio:9000/audio.previews/{{ $(\"Webhook\").item.json.body.project_id }}/chunk_{{ String($(\"Webhook\").item.json.body.chunk_index).padStart(3, \"0\") }}.mp3",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "20e67d16-ab97-4028-a483-4bdfe3628f0b",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2608,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "audio.previews",
+        "fileName": "={{ $(\"Webhook\").item.json.body.project_id }}/chunk_{{ String($(\"Webhook\").item.json.body.chunk_index).padStart(3, \"0\") }}.mp3",
+        "additionalFields": {}
+      },
+      "id": "3c2cde84-5b33-4282-b02c-f6bba496e387",
+      "name": "Upload to MinIO",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        2752,
+        1808
+      ],
+      "credentials": {
+        "s3": {
+          "id": "REDACTED",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://texttospeech.googleapis.com/v1/text:synthesize",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": {\n    \"text\": \"{{ $json.screenplay_text }}\"\n  },\n  \"voice\": {\n    \"languageCode\": \"{{ $json.language || \"en-US\" }}\",\n    \"name\": \"{{ $json.voice_full }}\"\n  },\n  \"audioConfig\": {\n    \"audioEncoding\": \"MP3\",\n    \"speakingRate\": 0.9\n  }\n}\n",
+        "options": {}
+      },
+      "id": "50391241-0d1e-4003-8354-8c93d1176c80",
+      "name": "Request Google TTS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        1616
+      ],
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "REDACTED",
+          "name": "Google tts"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "audioContent",
+        "options": {}
+      },
+      "id": "4b411846-6e87-44a2-ad1d-d5ba7da9393b",
+      "name": "Convert to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2560,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2304,
+        1280
+      ],
+      "id": "9d6c1033-b303-44b4-bc1f-f39598d8e34b",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.screenplay_text || \"\";\n\nconst clean = raw\n  .replace(/\\u000b/g, \" \")\n  .replace(/\\s+/g, \" \")\n  .trim();\n\nreturn [{ json: { ...$json, screenplay_text: clean } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2736,
+        1408
+      ],
+      "id": "6c8e8be6-84fa-451e-a5b7-99eeeb77c1bb",
+      "name": "Clean text code"
+    },
+    {
+      "parameters": {
+        "keep": "lastItems"
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        1280
+      ],
+      "id": "0f6eeeda-7f62-40b2-85d1-7c3d3a9aa548",
+      "name": "Limit2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "audio-preview",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1840,
+        1280
+      ],
+      "id": "66ffce61-f2ba-43aa-8fc4-ddaa2235d353",
+      "name": "Webhook",
+      "webhookId": "eacfc485-504e-4b3c-afcc-d0d40995d684"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "voice_full",
+              "name": "voice_full",
+              "value": "=en-US-Chirp3-HD-{{ $(\"Webhook\").item.json.body.voice }}",
+              "type": "string"
+            },
+            {
+              "id": "language",
+              "name": "language",
+              "value": "={{ $(\"Webhook\").item.json.body.language }}",
+              "type": "string"
+            },
+            {
+              "id": "screenplay_text",
+              "name": "screenplay_text",
+              "value": "={{ $(\"Webhook\").item.json.body.screenplay_text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "680c4e5f-1622-439f-b3e5-ce505fe39d85",
+      "name": "Build Voice Name",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2544,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: $json.success, project_id: $json.project_id, chunk_index: $json.chunk_index ?? 0, chunk_audio_url: $json.chunk_audio_url }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2880,
+        1152
+      ],
+      "id": "2f6cc420-6b34-47de-8a27-fe9719c83ca8",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Upload to MinIO": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request Google TTS": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Upload to MinIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Voice Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean text code": {
+      "main": [
+        [
+          {
+            "node": "Request Google TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Limit2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Voice Name": {
+      "main": [
+        [
+          {
+            "node": "Clean text code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "tags": [],
+  "createdAt": "2026-03-19T18:36:03.953Z",
+  "updatedAt": "2026-04-12T16:43:37.937Z"
+}

@@ -1,0 +1,299 @@
+{
+  "id": "0xUF5QHgHai246WN",
+  "name": "final-cut",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "final-cut",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        -144
+      ],
+      "id": "63c90200-4567-4422-9153-d3f04a25cffc",
+      "name": "Webhook",
+      "webhookId": "3448d931-d4cf-4405-8d87-03f12cb93d30"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').item.json;\nconst input = webhookData.body || webhookData;\nconst errors = [];\n\nif (!input.project_id) errors.push('Missing: project_id');\nif (!input.chapter_videos || !Array.isArray(input.chapter_videos) || input.chapter_videos.length === 0) {\n  errors.push('Missing or empty: chapter_videos array');\n}\n\nif (errors.length > 0) {\n  throw new Error('Validation failed: ' + errors.join(', '));\n}\n\n// ncat expects video_urls as array of objects with video_url property\nconst videoUrls = input.chapter_videos.map(cv => ({\n  video_url: cv.video_url || cv.url\n}));\n\nconst defaultCaptionSettings = {\n  line_color: '#FFFFFF',\n  word_color: '#66ff74',\n  all_caps: false,\n  max_words_per_line: 3,\n  font_size: 60,\n  bold: false,\n  italic: false,\n  underline: false,\n  strikeout: false,\n  outline_width: 3,\n  shadow_offset: 4,\n  style: 'highlight',\n  font_family: 'The Bold Font',\n  position: 'bottom_center'\n};\n\nconst captionSettings = input.caption_settings || defaultCaptionSettings;\n\nreturn {\n  project_id: input.project_id,\n  chapter_videos: input.chapter_videos,\n  add_captions: input.add_captions !== false,\n  caption_settings: captionSettings,\n  // ncat concatenate format\n  output: JSON.stringify({\n    video_urls: videoUrls,\n    id: input.project_id\n  })\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        -144
+      ],
+      "id": "validate-input-final-cut",
+      "name": "Validate Input"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/concatenate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.output }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "1d21f973-b5f2-4a59-8f5b-ec2605ad09da",
+      "name": "ncat: Concatenate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        -144
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/video/caption",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_url: $json.response, settings: $('Validate Input').item.json.caption_settings, id: $('Validate Input').item.json.project_id, webhook_url: '' }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        -144
+      ],
+      "id": "20ebdad3-b189-4a90-b4b7-73a6d0eea25b",
+      "name": "Caption Video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ncat:8080/v1/toolkit/job/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ job_id: $json.job_id }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        656,
+        -144
+      ],
+      "id": "85b0cf03-d5a7-4332-a7da-9af18409e3db",
+      "name": "status",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REDACTED",
+          "name": "nca credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1bd32662-74ef-4c9f-84fa-6d6687056da3",
+              "leftValue": "={{ $json.response.job_status }}",
+              "rightValue": "done",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        656,
+        0
+      ],
+      "id": "6ff2276a-5365-40cd-b17c-05ed6e7ecdc9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        656,
+        144
+      ],
+      "id": "0ef7c096-07bc-4efa-97bf-9f0af8a3e7ac",
+      "name": "Wait",
+      "webhookId": "67d2a671-d870-4dfb-8265-4a9c4a703a30"
+    },
+    {
+      "parameters": {
+        "jsCode": "const validateInput = $('Validate Input').item.json;\nconst statusResponse = $json;\n\nreturn {\n  success: true,\n  project_id: validateInput.project_id,\n  video_url: statusResponse.response.response\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -144
+      ],
+      "id": "build-response-final-cut",
+      "name": "Build Response"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1104,
+        -144
+      ],
+      "id": "8a721df3-75ad-489d-9fe2-687c21ee14b0",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "ncat: Concatenate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ncat: Concatenate": {
+      "main": [
+        [
+          {
+            "node": "Caption Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Caption Video": {
+      "main": [
+        [
+          {
+            "node": "status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "status": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "binaryMode": "separate"
+  },
+  "tags": [],
+  "createdAt": "2026-04-02T17:02:25.736Z",
+  "updatedAt": "2026-04-06T08:19:51.566Z"
+}

@@ -1,0 +1,410 @@
+{
+  "id": "7nEZp11p9Zf8thur",
+  "name": "upscale",
+  "active": true,
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -336,
+        -64
+      ],
+      "id": "21baaa9d-c574-429e-a6a7-a05e99199747",
+      "name": "Loop Over Shots"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "shot-prompt",
+              "name": "shot_prompt",
+              "value": "=Extract ONLY panel {{ $json.shot_num }} from this {{ $json.total_shots }}-panel storyboard and render it as a full-frame 16:9 cinematic shot.\n\nPanel {{ $json.shot_num }} depicts: \"{{ $json.shot_narration }}\"\n\nRequirements:\n- Extract and from it expand this single panel to full cohesive 16:9 aspect ratio image shot. \n- Maintain the exact visual style, colors, and composition from the storyboard\n- But you have creativity freedom do complete the shot for full immersive representation of the shot's narration. \n- High quality, professional cinematic output\n- No text, no panel borders, just the clean image\n- Match the scene's {{ $json.style }} style",
+              "type": "string"
+            },
+            {
+              "id": "scene-id",
+              "name": "scene_id",
+              "value": "={{ $json.scene_id }}",
+              "type": "string"
+            },
+            {
+              "id": "shot-num",
+              "name": "shot_num",
+              "value": "={{ $json.shot_num }}",
+              "type": "number"
+            },
+            {
+              "id": "7f969a3a-542f-448b-8657-d4dbfc5b6950",
+              "name": "",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "8fb9beb2-085d-4325-8f54-a4b8a3a71441",
+              "name": "data",
+              "value": "={{ $('Extract from File').item.json.data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -64,
+        -48
+      ],
+      "id": "05131b86-97be-435c-bbc5-68bd1aa0eb33",
+      "name": "Build Shot Prompt"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "edit",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.1-flash-image-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.1-flash-image-preview"
+        },
+        "prompt": "={{ $('Build Shot Prompt').item.json.shot_prompt }}",
+        "images": {
+          "values": [
+            {
+              "binaryPropertyName": "=data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        368,
+        -48
+      ],
+      "id": "025c142a-ce34-421a-91d2-94a31eea988e",
+      "name": "Generate Shot",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REDACTED",
+          "name": "nano credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "jeremiah-media",
+        "fileName": "=shots/{{ $execution.id }}_{{ $('Build Shot Prompt').item.json.scene_id }}_shot_{{ $('Build Shot Prompt').item.json.shot_num }}.png",
+        "binaryPropertyName": "edited",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        592,
+        -48
+      ],
+      "id": "41001887-6422-42ab-a77c-abe402c7b52c",
+      "name": "Upload Shot",
+      "credentials": {
+        "s3": {
+          "id": "REDACTED",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "shot-num",
+              "name": "shot_num",
+              "value": "={{ $('Build Shot Prompt').item.json.shot_num }}",
+              "type": "number"
+            },
+            {
+              "id": "shot-narration",
+              "name": "shot_narration",
+              "value": "={{ $('Validate Input').item.json.shot_narration }}",
+              "type": "string"
+            },
+            {
+              "id": "image-url",
+              "name": "image_url",
+              "value": "=http://minio:9000/jeremiah-media/shots/{{ $execution.id }}_{{ $(\"Build Shot Prompt\").item.json.scene_id }}_shot_{{ $(\"Build Shot Prompt\").item.json.shot_num }}.png",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        816,
+        -48
+      ],
+      "id": "61118afa-55ca-4431-9ba4-8d7d79eeef08",
+      "name": "Format Shot Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all shots into response\nconst allItems = $input.all();\nconst sceneId = allItems[0].json.scene_id || $('Validate Input').first().json.scene_id;\n\nconst shots = allItems.map(item => ({\n  shot_num: item.json.shot_num,\n  shot_narration: item.json.shot_narration,\n  image_url: item.json.image_url\n})).sort((a, b) => a.shot_num - b.shot_num);\n\nreturn {\n  status: \"success\",\n  scene_id: sceneId,\n  shot_count: shots.length,\n  shots: shots\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        -336
+      ],
+      "id": "aggregate-output",
+      "name": "Aggregate Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        112,
+        -336
+      ],
+      "id": "7892315f-4a3b-4c5f-8f83-0421bf557218",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "upscale",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1216,
+        -64
+      ],
+      "id": "ac6879a2-14b5-4741-9a69-105bb5303914",
+      "name": "Webhook",
+      "webhookId": "5ae39768-203d-4d48-8281-6360d18d90e7"
+    },
+    {
+      "parameters": {
+        "jsCode": "  // Validate and prepare input - explicitly reference Webhook node                                 \n  const webhookData = $('Webhook').item.json;                                                       \n  const input = webhookData.body || webhookData;                                                    \n  const errors = [];                                                                                \n                                                                                                    \n  if (!input.scene_id) errors.push(\"Missing: scene_id\");                                            \n  if (!input.storyboard_url) errors.push(\"Missing: storyboard_url\");                                \n  if (!input.shots || !Array.isArray(input.shots)) errors.push(\"Missing: shots array\");             \n                                                                                                    \n  if (errors.length > 0) {                                                                          \n    throw new Error(\"Validation failed: \" + errors.join(\", \"));                                     \n  }                                                                                                 \n                                     \n  // Return scene data + expanded shots array                                                       \n  return input.shots.map((shot, index) => ({\n    scene_id: input.scene_id,                                                                       \n    storyboard_url: input.storyboard_url,                                                           \n    shot_num: shot.shot_num || index + 1,                                                           \n    shot_narration: shot.shot_narration,                                                            \n    total_shots: input.shots.length,                                                                \n    style: input.style || \"cinematic\",                                                              \n    aspect_ratio: input.aspect_ratio || \"16:9\"                                                      \n  }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        -64
+      ],
+      "id": "bf17bd32-fe79-49a7-b682-b95e6f3e3961",
+      "name": "Validate Input"
+    },
+    {
+      "parameters": {
+        "bucketName": "={{ $json.body.storyboard_url.split(\"/\")[3] }}",
+        "fileKey": "={{ $json.body.storyboard_url.split('/').slice(4).join('/') }}"
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -1024,
+        -64
+      ],
+      "id": "1b99f653-c83b-4249-8937-5e76f067fa14",
+      "name": "Download a file",
+      "executeOnce": true,
+      "credentials": {
+        "s3": {
+          "id": "REDACTED",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -832,
+        -64
+      ],
+      "id": "8fe10ece-74eb-4530-990f-42e18361ea42",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        -48
+      ],
+      "id": "e0f5e949-773a-4127-869d-2ca1abb3b04b",
+      "name": "Convert to File"
+    }
+  ],
+  "connections": {
+    "Loop Over Shots": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Shot Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Shot Prompt": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Shot": {
+      "main": [
+        [
+          {
+            "node": "Upload Shot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Shot": {
+      "main": [
+        [
+          {
+            "node": "Format Shot Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Shot Output": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Shots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Download a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Shots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download a file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Generate Shot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    "shots"
+  ],
+  "createdAt": "2026-03-30T18:05:57.429Z",
+  "updatedAt": "2026-04-12T17:26:04.370Z"
+}
